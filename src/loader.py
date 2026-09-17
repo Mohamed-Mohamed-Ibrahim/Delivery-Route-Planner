@@ -199,11 +199,7 @@ def load_deliveries(filepath: str) -> LoaderResult:
 
     if ext_lower == ".json":
         return load_from_json(filepath)
-    elif ext_lower in [".csv", ".tsv", ".txt"]:
+    elif ext_lower == ".csv":
         return load_from_csv(filepath)
     else:
-        # Try JSON first, fallback to CSV
-        try:
-            return load_from_json(filepath)
-        except Exception:
-            return load_from_csv(filepath)
+        raise Exception("Unsupported Input Format")
