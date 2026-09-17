@@ -19,6 +19,7 @@ def format_plan_summary(plan: RoutePlan, verbose: bool = False) -> str:
 
     metrics = plan.metrics
     if metrics:
+        lines.append(f" Algorithm Strategy      : {metrics.algorithm_version}")
         lines.append(f" Total Requests Ingested : {metrics.total_deliveries}")
         lines.append(f" Successfully Scheduled  : {metrics.delivered_count}")
         lines.append(f" Undeliverable / Flagged : {metrics.undelivered_count}")

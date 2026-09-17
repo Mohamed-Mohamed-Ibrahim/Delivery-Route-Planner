@@ -45,6 +45,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional maximum number of delivery stops per vehicle trip.",
     )
     parser.add_argument(
+        "-a",
+        "--algorithm",
+        type=str,
+        choices=["v2_knapsack", "v1_greedy", "v2", "v1"],
+        default="v2_knapsack",
+        help="Route planning algorithm strategy version (default: v2_knapsack).",
+    )
+    parser.add_argument(
         "--allow-multi-area",
         action="store_true",
         default=False,
@@ -96,6 +104,7 @@ def run(argv: Optional[List[str]] = None) -> int:
             max_capacity=args.capacity,
             max_stops=args.max_stops,
             allow_multi_area=args.allow_multi_area,
+            algorithm_version=args.algorithm,
         )
         plan = planner.plan(
             deliveries=loader_result.deliveries,

@@ -141,9 +141,11 @@ class PlanMetrics:
     average_utilization_pct: float
     area_trip_counts: Dict[str, int]
     priority_counts: Dict[int, int]
+    algorithm_version: str = "v2_knapsack"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "algorithm_version": self.algorithm_version,
             "total_deliveries": self.total_deliveries,
             "delivered_count": self.delivered_count,
             "undelivered_count": self.undelivered_count,

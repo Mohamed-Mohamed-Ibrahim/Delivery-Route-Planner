@@ -1,20 +1,22 @@
-"""Core route planning algorithm and optimization logic."""
+"""Core route planning coordinator and Strategy Context."""
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
+from src.algorithms import BasePlannerStrategy, get_strategy
 from src.models import Delivery, PlanMetrics, RoutePlan, Trip, UndeliverableItem
 
 
 class RoutePlanner:
-    """Plans vehicle delivery trips adhering to capacity, urgency, and area clustering."""
+    """Strategy Context coordinating delivery route planning, validation, and safety invariants."""
 
     def __init__(
         self,
         max_capacity: float = 10.0,
         max_stops: Optional[int] = None,
         allow_multi_area: bool = False,
+        algorithm_version: Optional[str] = None,
     ) -> None:
         if max_capacity <= 0:
             raise ValueError(f"Vehicle capacity must be positive, got {max_capacity}")
@@ -24,17 +26,19 @@ class RoutePlanner:
         self.max_capacity = max_capacity
         self.max_stops = max_stops
         self.allow_multi_area = allow_multi_area
+        self.strategy: BasePlannerStrategy = get_strategy(algorithm_version)
+        self.algorithm_version: str = self.strategy.algorithm_name
 
     def plan(
         self,
         deliveries: List[Delivery],
         initial_undeliverable: Optional[List[UndeliverableItem]] = None,
     ) -> RoutePlan:
-        """Generate an optimized route plan from a list of deliveries."""
+        """Generate an optimized route plan from a list of deliveries using the selected strategy."""
         undeliverable: List[UndeliverableItem] = list(initial_undeliverable or [])
         valid_deliveries: List[Delivery] = []
 
-        # 1. Filter out packages exceeding vehicle capacity
+        # 1. Quarantine packages exceeding vehicle capacity
         for d in deliveries:
             if round(d.weight, 4) > self.max_capacity:
                 undeliverable.append(
@@ -58,72 +62,27 @@ class RoutePlanner:
                 total_input=len(deliveries) + len(initial_undeliverable or []),
                 trips=[],
                 undeliverable=undeliverable,
+                algorithm_version=self.algorithm_version,
             )
             return RoutePlan(trips=[], undeliverable=undeliverable, metrics=metrics)
 
-        # 2. Organize remaining deliveries
-        # We track unassigned deliveries using a list or pool
-        unassigned = list(valid_deliveries)
-        trips: List[Trip] = []
-        trip_counter = 1
+        # 2. Delegate trip generation to the chosen algorithm strategy
+        trips = self.strategy.plan_trips(
+            deliveries=valid_deliveries,
+            max_capacity=self.max_capacity,
+            max_stops=self.max_stops,
+            allow_multi_area=self.allow_multi_area,
+        )
 
-        # While unassigned deliveries remain:
-        while unassigned:
-            # Pick the most urgent delivery in the pending pool
-            # Tie-breaking: (priority asc, str(id) asc)
-            unassigned.sort(key=lambda d: (d.priority, str(d.id)))
-            seed_delivery = unassigned[0]
-            primary_area = seed_delivery.area
-
-            # Create a new trip for this area
-            current_trip = Trip(trip_id=trip_counter, max_capacity=self.max_capacity)
-            current_trip.add_delivery(seed_delivery, max_stops=self.max_stops)
-            unassigned.remove(seed_delivery)
-
-            # Greedily search remaining unassigned deliveries for same-area candidates
-            # Prioritize higher urgency (lower priority number), then larger weight to maximize bin utilization
-            i = 0
-            while i < len(unassigned):
-                candidate = unassigned[i]
-                if candidate.area == primary_area and current_trip.can_fit(candidate, max_stops=self.max_stops):
-                    current_trip.add_delivery(candidate, max_stops=self.max_stops)
-                    unassigned.pop(i)
-                else:
-                    i += 1
-
-            # Optional: If multi-area is allowed and trip still has capacity and stops left
-            if self.allow_multi_area and current_trip.remaining_capacity > 0:
-                i = 0
-                while i < len(unassigned):
-                    candidate = unassigned[i]
-                    if current_trip.can_fit(candidate, max_stops=self.max_stops):
-                        current_trip.add_delivery(candidate, max_stops=self.max_stops)
-                        unassigned.pop(i)
-                    else:
-                        i += 1
-
-            # Order drop-offs within the trip by priority (most urgent first)
-            current_trip.deliveries.sort(key=lambda d: (d.priority, str(d.id)))
-            trips.append(current_trip)
-            trip_counter += 1
-
-        # 3. Sequence trips for dispatch:
-        # Lower priority number (more urgent) trips depart first.
-        # Tie-breaker: total weight descending (better utilized vehicle departs first), then trip_id
-        trips.sort(key=lambda t: (t.highest_priority, -t.total_weight, t.trip_id))
-
-        # Re-index trip IDs sequentially after dispatch ordering
-        for idx, t in enumerate(trips, start=1):
-            t.trip_id = idx
-
-        # 4. Invariant Verification
+        # 3. Post-condition safety invariant verification
         self._verify_invariants(valid_deliveries, trips)
 
-        # 5. Compute Metrics
+        # 4. Compute analytics metrics
         metrics = self._calculate_metrics(
             total_input=len(deliveries) + len(initial_undeliverable or []),
             trips=trips,
             undeliverable=undeliverable,
+            algorithm_version=self.algorithm_version,
         )
 
         return RoutePlan(trips=trips, undeliverable=undeliverable, metrics=metrics)
@@ -158,6 +117,7 @@ class RoutePlanner:
         total_input: int,
         trips: List[Trip],
         undeliverable: List[UndeliverableItem],
+        algorithm_version: Optional[str] = None,
     ) -> PlanMetrics:
         """Calculate comprehensive route and fleet analytics."""
         delivered_count = sum(t.stops_count for t in trips)
@@ -187,4 +147,5 @@ class RoutePlanner:
             average_utilization_pct=avg_utilization,
             area_trip_counts=area_counts,
             priority_counts=priority_counts,
+            algorithm_version=algorithm_version or self.algorithm_version,
         )

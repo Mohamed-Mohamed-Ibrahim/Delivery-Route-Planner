@@ -53,15 +53,21 @@ Delivery-Route-Planner/
 │   ├── __init__.py
 │   ├── models.py                    # Strongly-typed domain models (Delivery, Trip, RoutePlan, PlanMetrics)
 │   ├── loader.py                    # Multi-format reader (CSV/JSON) with schema validation
-│   ├── planner.py                   # Priority-driven area clustering algorithm
-│   └── reporter.py                  # Terminal table formatting and JSON/CSV manifest exporters
+│   ├── planner.py                   # Strategy context, invariant verification & metrics coordination
+│   ├── reporter.py                  # Terminal table formatting and JSON/CSV manifest exporters
+│   └── algorithms/                  # Modular Strategy Design Pattern implementations
+│       ├── __init__.py              # Strategy registry and factory
+│       ├── base.py                  # BasePlannerStrategy interface
+│       ├── v1_priority_greedy.py    # Version 1: Priority-Driven Greedy First-Fit
+│       └── v2_knapsack.py           # Version 2: 0/1 Knapsack Dynamic Programming (Default)
 ├── tests/
 │   ├── __init__.py
 │   ├── test_cli.py                  # End-to-end CLI integration tests
 │   ├── test_models.py               # Unit tests for domain models & capacity invariants
 │   ├── test_loader.py               # Ingestion, schema validation & corrupted data tests
 │   ├── test_planner.py              # Core planning logic & Section 3.1 verification
-│   └── test_edge_cases.py           # Edge cases (empty, >10kg, priority ties, precision)
+│   ├── test_edge_cases.py           # Edge cases (empty, >10kg, priority ties, precision)
+│   └── test_algorithms.py           # Strategy pattern, v1 vs v2, & Knapsack optimality tests
 ├── main.py                          # CLI application entry point
 ├── README.md                        # Documentation and technical reflection
 └── .env.example                     # Environment configuration template
@@ -121,8 +127,8 @@ Trip 3   Nasr City       2       5.70 / 10.0 kg    57.0%   #1(P2:4.5kg), #3(P3:1
 ### CLI Reference
 
 ```text
-usage: delivery-route-planner [-h] [-c CAPACITY] [-s MAX_STOPS] [--allow-multi-area]
-                              [-o OUTPUT] [-f {text,json,csv}] [-v]
+usage: delivery-route-planner [-h] [-c CAPACITY] [-s MAX_STOPS] [-a {v2_knapsack,v1_greedy}]
+                              [--allow-multi-area] [-o OUTPUT] [-f {text,json,csv}] [-v]
                               input_file
 
 positional arguments:
@@ -132,6 +138,7 @@ options:
   -h, --help            Show this help message and exit.
   -c, --capacity        Vehicle weight capacity in kg (default: 10.0).
   -s, --max-stops       Optional maximum delivery stops per vehicle trip.
+  -a, --algorithm       Route planning algorithm strategy (default: v2_knapsack).
   --allow-multi-area    Allow filling remaining vehicle capacity across areas.
   -o, --output          Optional output file path to save dispatch manifest.
   -f, --format          Output manifest format: 'text', 'json', or 'csv' (default: text).
@@ -195,7 +202,7 @@ ID,Area,Priority,Package Weight (kg)
 
 ## Running Automated Tests
 
-A comprehensive test suite of 29 tests covers unit models, data ingestion, boundary cases, and end-to-end integration:
+A comprehensive test suite of 34 tests covers unit models, data ingestion, boundary cases, strategy patterns, and end-to-end integration:
 
 ```bash
 python3 -m pytest -v tests/
@@ -206,6 +213,7 @@ Test modules:
 - `tests/test_loader.py`: CSV/JSON ingestion, header variations, empty files, malformed rows.
 - `tests/test_planner.py`: Section 3.1 sample dataset verification, priority ordering, area clustering.
 - `tests/test_edge_cases.py`: Empty input, overweight packages (> 10 kg), priority ties, capacity overflow, floating-point precision.
+- `tests/test_algorithms.py`: Strategy Design Pattern registration, v1 vs v2 parity, Knapsack optimality demonstration, and CLI algorithm flag.
 - `tests/test_cli.py`: CLI invocation, exit codes, output formatting, manifest exports.
 
 ### Test Coverage Plan
@@ -361,4 +369,4 @@ In real logistics operations, an algorithm is only as useful as its operational 
 - [x] README explains setup, execution, and CLI options.
 - [x] README thoroughly answers all 5 reasoning questions.
 - [x] One additional useful feature implemented and documented (Section 5).
-- [x] 100% automated test pass rate across 29 unit and integration tests.
+- [x] 100% automated test pass rate across 34 unit and integration tests.
