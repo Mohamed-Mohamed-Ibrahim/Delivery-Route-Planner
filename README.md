@@ -59,7 +59,8 @@ Delivery-Route-Planner/
 │       ├── __init__.py              # Strategy registry and factory
 │       ├── base.py                  # BasePlannerStrategy interface
 │       ├── v1_priority_greedy.py    # Version 1: Priority-Driven Greedy First-Fit
-│       └── v2_knapsack.py           # Version 2: 0/1 Knapsack Dynamic Programming (Default)
+│       ├── v2_knapsack.py           # Version 2: 0/1 Knapsack Dynamic Programming (Default)
+│       └── v3_minheap.py            # Version 3: Scalable Priority Min-Heap & Area Scheduler
 ├── tests/
 │   ├── __init__.py
 │   ├── test_cli.py                  # End-to-end CLI integration tests
@@ -127,7 +128,8 @@ Trip 3   Nasr City       2       5.70 / 10.0 kg    57.0%   #1(P2:4.5kg), #3(P3:1
 ### CLI Reference
 
 ```text
-usage: delivery-route-planner [-h] [-c CAPACITY] [-s MAX_STOPS] [-a {v2_knapsack,v1_greedy}]
+usage: delivery-route-planner [-h] [-c CAPACITY] [-s MAX_STOPS]
+                              [-a {v3_minheap,v2_knapsack,v1_greedy}]
                               [--allow-multi-area] [-o OUTPUT] [-f {text,json,csv}] [-v]
                               input_file
 
@@ -138,7 +140,7 @@ options:
   -h, --help            Show this help message and exit.
   -c, --capacity        Vehicle weight capacity in kg (default: 10.0).
   -s, --max-stops       Optional maximum delivery stops per vehicle trip.
-  -a, --algorithm       Route planning algorithm strategy (default: v2_knapsack).
+  -a, --algorithm       Route planning algorithm strategy: 'v3_minheap', 'v2_knapsack', or 'v1_greedy' (default: v2_knapsack).
   --allow-multi-area    Allow filling remaining vehicle capacity across areas.
   -o, --output          Optional output file path to save dispatch manifest.
   -f, --format          Output manifest format: 'text', 'json', or 'csv' (default: text).
@@ -317,6 +319,7 @@ Processing 1,000,000 deliveries exposes two distinct scaling bottlenecks:
    Processing is then isolated per area, reducing complexity from $O(N^2)$ to $\sum O(M_i^2)$ where $M_i \ll N$.
 2. **Priority Min-Heaps / Balanced Trees**:
    Store deliveries within each area in a priority queue / balanced search tree keyed by `(priority, weight)`. Extracting the next urgent or fitting package runs in $O(\log M)$.
+   *(Note: This design is directly implemented in strategy `v3_minheap` (`src/algorithms/v3_minheap.py`), coordinating area heaps with an area urgency scheduler heap).*
 3. **Streaming & Batching**:
    Stream input records using generators and flush completed trip manifests directly to disk (chunked CSV/JSON output) instead of accumulating all trips in memory.
 

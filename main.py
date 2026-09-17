@@ -47,8 +47,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-a",
         "--algorithm",
-        type=str,
-        choices=["v2_knapsack", "v1_greedy", "v2", "v1"],
+        choices=[
+            "v3_minheap",
+            "v2_knapsack",
+            "v1_greedy",
+            "v3",
+            "v2",
+            "v1",
+            "minheap",
+            "heap",
+            "knapsack",
+            "greedy",
+        ],
         default="v2_knapsack",
         help="Route planning algorithm strategy version (default: v2_knapsack).",
     )
