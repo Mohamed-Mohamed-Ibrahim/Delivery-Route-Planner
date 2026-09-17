@@ -28,38 +28,33 @@ def _normalize_key(key: str) -> str:
 
 
 def _map_fields(record: Dict[str, Any]) -> Tuple[Optional[Any], Optional[str], Optional[Any], Optional[Any]]:
-    """Extract (id, area, priority, weight) from record with flexible keys."""
+    """Extract (id, area, priority, weight) from record with canonical keys."""
     norm_dict = {_normalize_key(str(k)): v for k, v in record.items()}
 
     # Extract ID
     item_id = None
-    for k in ["id", "delivery id", "deliveryid", "package id", "pkg id"]:
-        if k in norm_dict and norm_dict[k] is not None and str(norm_dict[k]).strip() != "":
-            item_id = norm_dict[k]
-            break
+    if "id" in norm_dict and norm_dict["id"] is not None and str(norm_dict["id"]).strip() != "":
+        item_id = norm_dict["id"]
 
     # Extract Area
     area = None
-    for k in ["area", "zone", "destination", "region", "neighborhood"]:
-        if k in norm_dict and norm_dict[k] is not None and str(norm_dict[k]).strip() != "":
-            area = str(norm_dict[k]).strip()
-            break
+    if "area" in norm_dict and norm_dict["area"] is not None and str(norm_dict["area"]).strip() != "":
+        area = str(norm_dict["area"]).strip()
 
     # Extract Priority
     priority = None
-    for k in ["priority", "urgency", "level"]:
-        if k in norm_dict and norm_dict[k] is not None and str(norm_dict[k]).strip() != "":
-            priority = norm_dict[k]
-            break
+    if "priority" in norm_dict and norm_dict["priority"] is not None and str(norm_dict["priority"]).strip() != "":
+        priority = norm_dict["priority"]
 
-    # Extract Weight
+    # Extract Weight ("package weight" from CSV/JSON or "weight")
     weight = None
-    for k in ["package weight", "weight", "pkg weight", "package weight kg", "weight kg"]:
+    for k in ["package weight", "weight"]:
         if k in norm_dict and norm_dict[k] is not None and str(norm_dict[k]).strip() != "":
             weight = norm_dict[k]
             break
 
     return item_id, area, priority, weight
+
 
 
 def _parse_delivery_record(record: Dict[str, Any], row_idx: int) -> Tuple[Optional[Delivery], Optional[UndeliverableItem]]:
