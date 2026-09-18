@@ -45,3 +45,23 @@ def test_cli_verbose_flag(capsys) -> None:
     assert code == 0
     captured = capsys.readouterr()
     assert "DETAILED TRIP MANIFEST (DROP-OFF SEQUENCE):" in captured.out
+
+
+def test_cli_allow_multi_area_flag(capsys) -> None:
+    # 1. Default (flag only): uses 3 candidate areas
+    code = run(["data/sample_deliveries.csv", "--allow-multi-area"])
+    assert code == 0
+    captured = capsys.readouterr()
+    assert "DELIVERY ROUTE DISPATCH PLAN" in captured.out
+
+    # 2. Explicit limit: 2 candidate areas
+    code = run(["data/sample_deliveries.csv", "--allow-multi-area", "2"])
+    assert code == 0
+    captured = capsys.readouterr()
+    assert "DELIVERY ROUTE DISPATCH PLAN" in captured.out
+
+    # 3. Explicitly disabled: 0 candidate areas
+    code = run(["data/sample_deliveries.csv", "--allow-multi-area", "0"])
+    assert code == 0
+    captured = capsys.readouterr()
+    assert "DELIVERY ROUTE DISPATCH PLAN" in captured.out

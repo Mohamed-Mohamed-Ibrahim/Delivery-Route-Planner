@@ -15,7 +15,7 @@ class RoutePlanner:
         self,
         max_capacity: float = 10.0,
         max_stops: Optional[int] = None,
-        allow_multi_area: bool = False,
+        allow_multi_area: int = 0,
         algorithm_version: Optional[str] = None,
     ) -> None:
         if max_capacity <= 0:
@@ -25,7 +25,7 @@ class RoutePlanner:
 
         self.max_capacity = max_capacity
         self.max_stops = max_stops
-        self.allow_multi_area = allow_multi_area
+        self.allow_multi_area = max(0, allow_multi_area)
         self.strategy: BasePlannerStrategy = get_strategy(algorithm_version)
         self.algorithm_version: str = self.strategy.algorithm_name
 

@@ -23,7 +23,7 @@ class BasePlannerStrategy(ABC):
         deliveries: List[Delivery],
         max_capacity: float = 10.0,
         max_stops: Optional[int] = None,
-        allow_multi_area: bool = False,
+        allow_multi_area: int = 0,
     ) -> List[Trip]:
         """Plan vehicle trips from valid deliveries.
 
@@ -31,7 +31,9 @@ class BasePlannerStrategy(ABC):
             deliveries: List of valid deliveries (within vehicle weight limit).
             max_capacity: Maximum vehicle weight capacity in kg.
             max_stops: Optional maximum stops allowed per trip.
-            allow_multi_area: Whether to allow mixing delivery areas in a trip.
+            allow_multi_area: Number of candidate areas to scan for multi-area
+                consolidation. 0 means False (disabled); >0 means True (scans up to
+                that many candidate areas).
 
         Returns:
             List of scheduled Trip objects in dispatch order.

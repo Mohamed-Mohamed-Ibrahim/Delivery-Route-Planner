@@ -29,10 +29,12 @@ class PriorityGreedyPlannerV1(BasePlannerStrategy):
         deliveries: List[Delivery],
         max_capacity: float = 10.0,
         max_stops: Optional[int] = None,
-        allow_multi_area: bool = False,
+        allow_multi_area: int = 0,
     ) -> List[Trip]:
         if not deliveries:
             return []
+
+        allow_multi_area = max(0, allow_multi_area)
 
         # Sort upfront by urgency (priority asc, str(id) asc)
         unassigned = sorted(deliveries, key=lambda d: (d.priority, str(d.id)))
@@ -63,11 +65,21 @@ class PriorityGreedyPlannerV1(BasePlannerStrategy):
                 else:
                     i += 1
 
-            # Optional: If multi-area is allowed and trip still has capacity and stops left
-            if allow_multi_area and current_trip.remaining_capacity > 0:
+            if allow_multi_area > 0 and current_trip.remaining_capacity > 0:
                 i = 0
+                scanned_other_areas: set[str] = set()
                 while i < len(unassigned):
+                    if current_trip.remaining_capacity <= 0:
+                        break
+                    if max_stops is not None and current_trip.stops_count >= max_stops:
+                        break
+
                     candidate = unassigned[i]
+                    if candidate.area not in scanned_other_areas:
+                        if len(scanned_other_areas) >= allow_multi_area:
+                            break
+                        scanned_other_areas.add(candidate.area)
+
                     if current_trip.can_fit(candidate):
                         current_trip.add_delivery(candidate)
                         unassigned.pop(i)

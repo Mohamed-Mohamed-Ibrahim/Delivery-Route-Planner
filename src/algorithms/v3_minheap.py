@@ -60,10 +60,12 @@ class MinHeapPlannerV3(BasePlannerStrategy):
         deliveries: List[Delivery],
         max_capacity: float = 10.0,
         max_stops: Optional[int] = None,
-        allow_multi_area: bool = False,
+        allow_multi_area: int = 0,
     ) -> List[Trip]:
         if not deliveries:
             return []
+
+        allow_multi_area = max(0, allow_multi_area)
 
         # 1. Bucket deliveries by area into priority min-heaps
         # Heap item: (priority, weight, id_str, delivery)
@@ -112,16 +114,16 @@ class MinHeapPlannerV3(BasePlannerStrategy):
             for item in temp_buffer:
                 heapq.heappush(primary_heap, item)
 
-            # 4. Optional multi-area filling: pack packages from other areas
-            if allow_multi_area and current_trip.remaining_capacity > 0:
+            if allow_multi_area > 0 and current_trip.remaining_capacity > 0:
                 if max_stops is None or current_trip.stops_count < max_stops:
-                    # Collect other areas currently in the scheduler
+                    # Probe only the top K most urgent candidate areas from the scheduler heap
                     # Optimization in next version to choose the nearest area based on gps or location
-                        # use a heap based on distance and road cost instead of normal array 
-                    active_scheduler_areas = [entry[3] for entry in area_scheduler]
+                    candidate_areas = [
+                        entry[3] for entry in heapq.nsmallest(allow_multi_area, area_scheduler)
+                    ]
                     rebuild_scheduler = False
 
-                    for other_area in active_scheduler_areas:
+                    for other_area in candidate_areas:
                         if current_trip.remaining_capacity <= 0:
                             break
                         if max_stops is not None and current_trip.stops_count >= max_stops:

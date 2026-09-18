@@ -82,3 +82,33 @@ def test_planner_allow_multi_area() -> None:
     assert len(plan_multi.trips) == 1
     assert plan_multi.trips[0].total_weight == 6.0
     assert len(plan_multi.trips[0].areas) == 3
+
+
+def test_planner_allow_multi_area_limit_enforcement() -> None:
+    """Verify that allow_multi_area integer limits the number of candidate areas scanned (0=False, >0=True)."""
+    deliveries = [
+        Delivery(id=1, area="Area_A", priority=1, weight=2.0),
+        Delivery(id=2, area="Area_B", priority=2, weight=2.0),
+        Delivery(id=3, area="Area_C", priority=3, weight=2.0),
+        Delivery(id=4, area="Area_D", priority=4, weight=2.0),
+        Delivery(id=5, area="Area_E", priority=5, weight=2.0),
+    ]
+
+    # 1. allow_multi_area=0 means False (single-area routing) -> 5 separate trips
+    planner_zero = RoutePlanner(max_capacity=10.0, allow_multi_area=0)
+    plan_zero = planner_zero.plan(deliveries)
+    assert len(plan_zero.trips) == 5
+
+    # 2. allow_multi_area=2 means True with limit=2 candidate areas
+    # Trip 1 seeds with Area_A and scans at most 2 candidate areas (Area_B, Area_C)
+    # Area_D and Area_E cannot be scanned into Trip 1, creating Trip 2
+    for algo in ["v3_minheap", "v1_priority_greedy"]:
+        planner_limited = RoutePlanner(max_capacity=10.0, allow_multi_area=2, algorithm_version=algo)
+        plan_limited = planner_limited.plan(deliveries)
+        assert len(plan_limited.trips) == 2
+        # Trip 1 has Area_A + 2 candidate areas = 3 areas (6.0 kg)
+        assert len(plan_limited.trips[0].areas) == 3
+        assert set(plan_limited.trips[0].areas) == {"Area_A", "Area_B", "Area_C"}
+        # Trip 2 has Area_D + 1 candidate area = 2 areas (4.0 kg)
+        assert len(plan_limited.trips[1].areas) == 2
+        assert set(plan_limited.trips[1].areas) == {"Area_D", "Area_E"}

@@ -62,9 +62,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--allow-multi-area",
-        action="store_true",
-        default=False,
-        help="Allow filling remaining vehicle capacity with packages from other areas.",
+        nargs="?",
+        const=3,
+        type=int,
+        default=0,
+        metavar="AREAS",
+        help="Number of candidate areas to scan for multi-area packing (0 = disabled/False; default when flag present: 3).",
     )
     parser.add_argument(
         "-o",

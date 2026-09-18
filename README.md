@@ -189,7 +189,7 @@ Trip 3   Nasr City       2       5.70 / 10.0 kg    57.0%   #1(P2:4.5kg), #3(P3:1
 ```text
 usage: delivery-route-planner [-h] [-c CAPACITY] [-s MAX_STOPS]
                               [-a {v3_minheap,v1_priority_greedy,v1_greedy,v3,v1,minheap,heap,greedy}]
-                              [--allow-multi-area] [-o OUTPUT]
+                              [--allow-multi-area [AREAS]] [-o OUTPUT]
                               [-f {text,json,csv}] [-v]
                               input_file
 
@@ -201,7 +201,8 @@ options:
   -c, --capacity        Vehicle weight capacity limit in kg (default: 10.0).
   -s, --max-stops       Optional maximum number of delivery stops per vehicle trip.
   -a, --algorithm       Route planning algorithm strategy version (default: v3_minheap).
-  --allow-multi-area    Allow filling remaining vehicle capacity with packages from other areas.
+  --allow-multi-area [AREAS]
+                        Number of candidate areas to scan for multi-area packing (0 = disabled/False; default when flag present: 3).
   -o, --output          Optional output file path to save dispatch manifest.
   -f, --format          Output format for file export: 'text', 'json', or 'csv' (default: text).
   -v, --verbose         Print detailed per-stop manifest breakdown in console output.
@@ -330,7 +331,7 @@ Our production solution implements a **Two-Tiered Priority Min-Heap & Area Urgen
    - Packages that temporarily exceed remaining capacity are held in a local temporary buffer and pushed back into the area min-heap once packing completes.
    - If the area heap still contains packages, the area is re-inserted into the scheduler heap with its new top priority.
 5. **Multi-Area Consolidation (Optional)**:
-   - If `--allow-multi-area` is enabled and capacity remains, other areas in the scheduler heap are similarly probed for fitting packages.
+   - If `--allow-multi-area` is enabled ($> 0$) and capacity remains, candidate areas in the scheduler heap (`heapq.nsmallest(allow_multi_area, area_scheduler)`) are probed for fitting packages, strictly bounding the worst-case scan to $O(K \log M)$. Setting `0` disables multi-area consolidation.
 6. **Dispatch Sequencing & Intra-Trip Routing**:
    - Inside each vehicle trip, drop-offs are sorted by priority (driver delivers Priority 1 packages before Priority 2).
    - Completed trips are sequenced for warehouse departure by highest priority package (`t.highest_priority`), broken by total weight descending and trip ID.
@@ -459,7 +460,7 @@ In real logistics operations, an algorithm is only as useful as its operational 
 - **Configurable Fleet Constraints**:
   - `--capacity / -c`: Adjust vehicle weight limit (default: 10.0 kg) to model different fleet vehicle sizes (motorcycles, vans, cargo bikes).
   - `--max-stops / -s`: Set maximum delivery stops per trip to account for driver shift duration or fatigue constraints.
-  - `--allow-multi-area`: Enable cross-area package filling when spare capacity remains.
+  - `--allow-multi-area [AREAS]`: Enable cross-area package filling when spare capacity remains, bounded by candidate area scan limit (0 = disabled/False; default when flag is passed: 3).
 - **Quarantine Diagnostics**:
   - Automatic isolation and diagnostic reporting for packages exceeding vehicle capacity or containing corrupt attributes, allowing operators to reschedule them via freight carriers without interrupting the standard dispatch cycle.
 
