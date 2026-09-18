@@ -57,8 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
             "heap",
             "greedy",
         ],
-        default="v1_priority_greedy",
-        help="Route planning algorithm strategy version (default: v1_priority_greedy).",
+        default="v3_minheap",
+        help="Route planning algorithm strategy version (default: v3_minheap).",
     )
     parser.add_argument(
         "--allow-multi-area",

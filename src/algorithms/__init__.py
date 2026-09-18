@@ -8,7 +8,7 @@ from src.algorithms.base import BasePlannerStrategy
 from src.algorithms.v1_priority_greedy import PriorityGreedyPlannerV1
 from src.algorithms.v3_minheap import MinHeapPlannerV3
 
-DEFAULT_ALGORITHM: str = "v1_priority_greedy"
+DEFAULT_ALGORITHM: str = "v3_minheap"
 
 STRATEGY_REGISTRY: Dict[str, Type[BasePlannerStrategy]] = {
     "v1_priority_greedy": PriorityGreedyPlannerV1,

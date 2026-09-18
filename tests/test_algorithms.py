@@ -16,12 +16,12 @@ from main import run
 
 def test_strategy_factory_and_defaults() -> None:
     """Verify that get_strategy returns expected strategy instances and handles defaults."""
-    assert DEFAULT_ALGORITHM == "v1_priority_greedy"
+    assert DEFAULT_ALGORITHM == "v3_minheap"
 
     # Default strategy
     default_strat = get_strategy()
-    assert isinstance(default_strat, PriorityGreedyPlannerV1)
-    assert default_strat.algorithm_name == "v1_priority_greedy"
+    assert isinstance(default_strat, MinHeapPlannerV3)
+    assert default_strat.algorithm_name == "v3_minheap"
 
     # Explicit v1
     v1_strat = get_strategy("v1_priority_greedy")
@@ -47,8 +47,8 @@ def test_strategy_factory_and_defaults() -> None:
 
 
 def test_plan_metrics_algorithm_version_argument() -> None:
-    """Verify PlanMetrics algorithm_version argument defaults to v1_priority_greedy and accepts custom."""
-    # 1. Default should be v1_priority_greedy
+    """Verify PlanMetrics algorithm_version argument defaults to v3_minheap and accepts custom."""
+    # 1. Default should be v3_minheap
     metrics_default = PlanMetrics(
         total_deliveries=5,
         delivered_count=5,
@@ -59,11 +59,11 @@ def test_plan_metrics_algorithm_version_argument() -> None:
         area_trip_counts={"Maadi": 1},
         priority_counts={1: 2},
     )
-    assert metrics_default.algorithm_version == "v1_priority_greedy"
-    assert metrics_default.to_dict()["algorithm_version"] == "v1_priority_greedy"
+    assert metrics_default.algorithm_version == "v3_minheap"
+    assert metrics_default.to_dict()["algorithm_version"] == "v3_minheap"
 
-    # 2. Explicit v3
-    metrics_v3 = PlanMetrics(
+    # 2. Explicit v1
+    metrics_v1 = PlanMetrics(
         total_deliveries=5,
         delivered_count=5,
         undelivered_count=0,
@@ -72,32 +72,32 @@ def test_plan_metrics_algorithm_version_argument() -> None:
         average_utilization_pct=60.7,
         area_trip_counts={"Maadi": 1},
         priority_counts={1: 2},
-        algorithm_version="v3_minheap",
+        algorithm_version="v1_priority_greedy",
     )
-    assert metrics_v3.algorithm_version == "v3_minheap"
-    assert metrics_v3.to_dict()["algorithm_version"] == "v3_minheap"
+    assert metrics_v1.algorithm_version == "v1_priority_greedy"
+    assert metrics_v1.to_dict()["algorithm_version"] == "v1_priority_greedy"
 
 
 def test_route_planner_strategy_selection() -> None:
-    """Verify RoutePlanner correctly switches between v1 and v3 strategies."""
+    """Verify RoutePlanner correctly switches between v3 and v1 strategies."""
     deliveries = [
         Delivery(id=1, area="Maadi", priority=1, weight=2.0),
         Delivery(id=2, area="Maadi", priority=2, weight=3.5),
     ]
 
-    # Default planner uses v1
+    # Default planner uses v3
     planner_default = RoutePlanner()
-    assert planner_default.algorithm_version == "v1_priority_greedy"
+    assert planner_default.algorithm_version == "v3_minheap"
     plan_default = planner_default.plan(deliveries)
     assert plan_default.metrics is not None
-    assert plan_default.metrics.algorithm_version == "v1_priority_greedy"
+    assert plan_default.metrics.algorithm_version == "v3_minheap"
 
-    # Explicit v3 planner
-    planner_v3 = RoutePlanner(algorithm_version="v3_minheap")
-    assert planner_v3.algorithm_version == "v3_minheap"
-    plan_v3 = planner_v3.plan(deliveries)
-    assert plan_v3.metrics is not None
-    assert plan_v3.metrics.algorithm_version == "v3_minheap"
+    # Explicit v1 planner
+    planner_v1 = RoutePlanner(algorithm_version="v1_priority_greedy")
+    assert planner_v1.algorithm_version == "v1_priority_greedy"
+    plan_v1 = planner_v1.plan(deliveries)
+    assert plan_v1.metrics is not None
+    assert plan_v1.metrics.algorithm_version == "v1_priority_greedy"
 
 
 def test_cli_algorithm_flag(capsys: pytest.CaptureFixture[str]) -> None:
