@@ -61,19 +61,28 @@ def test_trip_capacity_exceeded() -> None:
 
 
 def test_trip_max_stops_constraint() -> None:
-    trip = Trip(trip_id=1, max_capacity=10.0)
+    # 1. Primary: max_stops configured at Trip initialization
+    trip = Trip(trip_id=1, max_capacity=10.0, max_stops=2)
     d1 = Delivery(id=1, area="Maadi", priority=1, weight=1.0)
     d2 = Delivery(id=2, area="Maadi", priority=2, weight=1.0)
     d3 = Delivery(id=3, area="Maadi", priority=3, weight=1.0)
 
-    assert trip.can_fit(d1, max_stops=2)
-    trip.add_delivery(d1, max_stops=2)
-    assert trip.can_fit(d2, max_stops=2)
-    trip.add_delivery(d2, max_stops=2)
+    assert trip.can_fit(d1)
+    trip.add_delivery(d1)
+    assert trip.can_fit(d2)
+    trip.add_delivery(d2)
 
-    assert not trip.can_fit(d3, max_stops=2)
-    with pytest.raises(ValueError, match="exceeds capacity"):
-        trip.add_delivery(d3, max_stops=2)
+    assert not trip.can_fit(d3)
+    with pytest.raises(ValueError, match="exceeds max stops limit"):
+        trip.add_delivery(d3)
+
+    # 2. Backwards compatibility: can_fit / add_delivery override
+    trip_unbounded = Trip(trip_id=2, max_capacity=10.0)
+    assert trip_unbounded.can_fit(d1, max_stops=1)
+    trip_unbounded.add_delivery(d1, max_stops=1)
+    assert not trip_unbounded.can_fit(d2, max_stops=1)
+    with pytest.raises(ValueError, match="exceeds max stops limit"):
+        trip_unbounded.add_delivery(d2, max_stops=1)
 
 
 def test_undeliverable_item_dict() -> None:

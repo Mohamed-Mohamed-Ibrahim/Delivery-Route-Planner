@@ -78,8 +78,12 @@ class MinHeapPlannerV3(BasePlannerStrategy):
 
             # Seed the trip with the most urgent package from this area
             _, _, _, seed_delivery = heapq.heappop(primary_heap)
-            current_trip = Trip(trip_id=trip_counter, max_capacity=max_capacity)
-            current_trip.add_delivery(seed_delivery, max_stops=max_stops)
+            current_trip = Trip(
+                trip_id=trip_counter,
+                max_capacity=max_capacity,
+                max_stops=max_stops,
+            )
+            current_trip.add_delivery(seed_delivery)
 
             # Greedily pack additional packages from the same area using the min-heap
             temp_buffer: List[Tuple[int, float, str, Delivery]] = []
@@ -89,8 +93,8 @@ class MinHeapPlannerV3(BasePlannerStrategy):
 
                 entry = heapq.heappop(primary_heap)
                 candidate = entry[3]
-                if current_trip.can_fit(candidate, max_stops=max_stops):
-                    current_trip.add_delivery(candidate, max_stops=max_stops)
+                if current_trip.can_fit(candidate):
+                    current_trip.add_delivery(candidate)
                 else:
                     temp_buffer.append(entry)
 
@@ -121,8 +125,8 @@ class MinHeapPlannerV3(BasePlannerStrategy):
 
                             entry = heapq.heappop(other_heap)
                             candidate = entry[3]
-                            if current_trip.can_fit(candidate, max_stops=max_stops):
-                                current_trip.add_delivery(candidate, max_stops=max_stops)
+                            if current_trip.can_fit(candidate):
+                                current_trip.add_delivery(candidate)
                                 packed_from_other = True
                             else:
                                 other_temp.append(entry)

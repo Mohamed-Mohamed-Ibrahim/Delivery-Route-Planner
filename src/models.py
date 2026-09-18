@@ -41,6 +41,7 @@ class Trip:
     trip_id: int
     deliveries: List[Delivery] = field(default_factory=list)
     max_capacity: float = 10.0
+    max_stops: Optional[int] = None
 
     @property
     def total_weight(self) -> float:
@@ -82,17 +83,24 @@ class Trip:
         return len(self.deliveries)
 
     def can_fit(self, delivery: Delivery, max_stops: Optional[int] = None) -> bool:
-        """Check if adding delivery violates weight capacity or optional max stops constraint."""
-        if max_stops is not None and self.stops_count >= max_stops:
+        """Check if adding delivery violates weight capacity or max stops constraint."""
+        effective_stops = self.max_stops if max_stops is None else max_stops
+        if effective_stops is not None and self.stops_count >= effective_stops:
             return False
         return round(self.total_weight + delivery.weight, 4) <= self.max_capacity
 
     def add_delivery(self, delivery: Delivery, max_stops: Optional[int] = None) -> None:
         """Add a delivery to the trip, enforcing capacity invariants."""
-        if not self.can_fit(delivery, max_stops=max_stops):
+        effective_stops = self.max_stops if max_stops is None else max_stops
+        if not self.can_fit(delivery, max_stops=effective_stops):
+            if effective_stops is not None and self.stops_count >= effective_stops:
+                reason = f"exceeds max stops limit ({self.stops_count}/{effective_stops} stops)"
+            else:
+                reason = (
+                    f"exceeds capacity ({self.total_weight} + {delivery.weight} > {self.max_capacity} kg)"
+                )
             raise ValueError(
-                f"Cannot add delivery {delivery.id} ({delivery.weight} kg) to Trip {self.trip_id}: "
-                f"exceeds capacity ({self.total_weight} + {delivery.weight} > {self.max_capacity} kg)."
+                f"Cannot add delivery {delivery.id} ({delivery.weight} kg) to Trip {self.trip_id}: {reason}."
             )
         self.deliveries.append(delivery)
 
@@ -102,6 +110,7 @@ class Trip:
             "areas": self.areas,
             "total_weight": self.total_weight,
             "max_capacity": self.max_capacity,
+            "max_stops": self.max_stops,
             "utilization_pct": self.utilization_rate,
             "highest_priority": self.highest_priority if self.deliveries else None,
             "stops_count": self.stops_count,

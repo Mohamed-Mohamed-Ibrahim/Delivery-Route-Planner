@@ -45,16 +45,20 @@ class PriorityGreedyPlannerV1(BasePlannerStrategy):
             primary_area = seed_delivery.area
 
             # Create a new trip for this area
-            current_trip = Trip(trip_id=trip_counter, max_capacity=max_capacity)
-            current_trip.add_delivery(seed_delivery, max_stops=max_stops)
+            current_trip = Trip(
+                trip_id=trip_counter,
+                max_capacity=max_capacity,
+                max_stops=max_stops,
+            )
+            current_trip.add_delivery(seed_delivery)
             unassigned.pop(0)
 
             # Greedily search remaining unassigned deliveries for same-area candidates
             i = 0
             while i < len(unassigned):
                 candidate = unassigned[i]
-                if candidate.area == primary_area and current_trip.can_fit(candidate, max_stops=max_stops):
-                    current_trip.add_delivery(candidate, max_stops=max_stops)
+                if candidate.area == primary_area and current_trip.can_fit(candidate):
+                    current_trip.add_delivery(candidate)
                     unassigned.pop(i)
                 else:
                     i += 1
@@ -64,8 +68,8 @@ class PriorityGreedyPlannerV1(BasePlannerStrategy):
                 i = 0
                 while i < len(unassigned):
                     candidate = unassigned[i]
-                    if current_trip.can_fit(candidate, max_stops=max_stops):
-                        current_trip.add_delivery(candidate, max_stops=max_stops)
+                    if current_trip.can_fit(candidate):
+                        current_trip.add_delivery(candidate)
                         unassigned.pop(i)
                     else:
                         i += 1
