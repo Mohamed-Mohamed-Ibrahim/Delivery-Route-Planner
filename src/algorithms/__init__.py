@@ -6,19 +6,15 @@ from typing import Dict, Type
 
 from src.algorithms.base import BasePlannerStrategy
 from src.algorithms.v1_priority_greedy import PriorityGreedyPlannerV1
-from src.algorithms.v2_knapsack import KnapsackPlannerV2
 from src.algorithms.v3_minheap import MinHeapPlannerV3
 
-DEFAULT_ALGORITHM: str = "v2_knapsack"
+DEFAULT_ALGORITHM: str = "v1_priority_greedy"
 
 STRATEGY_REGISTRY: Dict[str, Type[BasePlannerStrategy]] = {
     "v1_priority_greedy": PriorityGreedyPlannerV1,
     "v1_greedy": PriorityGreedyPlannerV1,
     "v1": PriorityGreedyPlannerV1,
     "greedy": PriorityGreedyPlannerV1,
-    "v2_knapsack": KnapsackPlannerV2,
-    "v2": KnapsackPlannerV2,
-    "knapsack": KnapsackPlannerV2,
     "v3_minheap": MinHeapPlannerV3,
     "v3_heap": MinHeapPlannerV3,
     "v3": MinHeapPlannerV3,
@@ -40,7 +36,6 @@ def get_strategy(name: str | None = None) -> BasePlannerStrategy:
 __all__ = [
     "BasePlannerStrategy",
     "PriorityGreedyPlannerV1",
-    "KnapsackPlannerV2",
     "MinHeapPlannerV3",
     "DEFAULT_ALGORITHM",
     "STRATEGY_REGISTRY",

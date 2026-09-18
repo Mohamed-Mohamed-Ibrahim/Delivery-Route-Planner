@@ -49,18 +49,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--algorithm",
         choices=[
             "v3_minheap",
-            "v2_knapsack",
+            "v1_priority_greedy",
             "v1_greedy",
             "v3",
-            "v2",
             "v1",
             "minheap",
             "heap",
-            "knapsack",
             "greedy",
         ],
-        default="v2_knapsack",
-        help="Route planning algorithm strategy version (default: v2_knapsack).",
+        default="v1_priority_greedy",
+        help="Route planning algorithm strategy version (default: v1_priority_greedy).",
     )
     parser.add_argument(
         "--allow-multi-area",

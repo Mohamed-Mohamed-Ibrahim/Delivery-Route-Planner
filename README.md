@@ -58,8 +58,7 @@ Delivery-Route-Planner/
 │   └── algorithms/                  # Modular Strategy Design Pattern implementations
 │       ├── __init__.py              # Strategy registry and factory
 │       ├── base.py                  # BasePlannerStrategy interface
-│       ├── v1_priority_greedy.py    # Version 1: Priority-Driven Greedy First-Fit
-│       ├── v2_knapsack.py           # Version 2: 0/1 Knapsack Dynamic Programming (Default)
+│       ├── v1_priority_greedy.py    # Version 1: Priority-Driven Greedy First-Fit (Default)
 │       └── v3_minheap.py            # Version 3: Scalable Priority Min-Heap & Area Scheduler
 ├── tests/
 │   ├── __init__.py
@@ -68,7 +67,7 @@ Delivery-Route-Planner/
 │   ├── test_loader.py               # Ingestion, schema validation & corrupted data tests
 │   ├── test_planner.py              # Core planning logic & Section 3.1 verification
 │   ├── test_edge_cases.py           # Edge cases (empty, >10kg, priority ties, precision)
-│   └── test_algorithms.py           # Strategy pattern, v1 vs v2, & Knapsack optimality tests
+│   └── test_algorithms.py           # Strategy pattern, v1 vs v3, & Min-Heap scalability tests
 ├── main.py                          # CLI application entry point
 ├── README.md                        # Documentation and technical reflection
 └── .env.example                     # Environment configuration template
@@ -129,7 +128,7 @@ Trip 3   Nasr City       2       5.70 / 10.0 kg    57.0%   #1(P2:4.5kg), #3(P3:1
 
 ```text
 usage: delivery-route-planner [-h] [-c CAPACITY] [-s MAX_STOPS]
-                              [-a {v3_minheap,v2_knapsack,v1_greedy}]
+                              [-a {v3_minheap,v1_priority_greedy,v1_greedy,v3,v1,minheap,heap,greedy}]
                               [--allow-multi-area] [-o OUTPUT] [-f {text,json,csv}] [-v]
                               input_file
 
@@ -140,7 +139,7 @@ options:
   -h, --help            Show this help message and exit.
   -c, --capacity        Vehicle weight capacity in kg (default: 10.0).
   -s, --max-stops       Optional maximum delivery stops per vehicle trip.
-  -a, --algorithm       Route planning algorithm strategy: 'v3_minheap', 'v2_knapsack', or 'v1_greedy' (default: v2_knapsack).
+  -a, --algorithm       Route planning algorithm strategy: 'v3_minheap' or 'v1_greedy' (default: v1_priority_greedy).
   --allow-multi-area    Allow filling remaining vehicle capacity across areas.
   -o, --output          Optional output file path to save dispatch manifest.
   -f, --format          Output manifest format: 'text', 'json', or 'csv' (default: text).
@@ -215,7 +214,7 @@ Test modules:
 - `tests/test_loader.py`: CSV/JSON ingestion, header variations, empty files, malformed rows.
 - `tests/test_planner.py`: Section 3.1 sample dataset verification, priority ordering, area clustering.
 - `tests/test_edge_cases.py`: Empty input, overweight packages (> 10 kg), priority ties, capacity overflow, floating-point precision.
-- `tests/test_algorithms.py`: Strategy Design Pattern registration, v1 vs v2 parity, Knapsack optimality demonstration, and CLI algorithm flag.
+- `tests/test_algorithms.py`: Strategy Design Pattern registration, v1 vs v3 parity, Min-Heap scaling tests, and CLI algorithm flag.
 - `tests/test_cli.py`: CLI invocation, exit codes, output formatting, manifest exports.
 
 ### Test Coverage Plan
@@ -333,8 +332,20 @@ With an additional day, the following enhancements would elevate this tool to pr
    - Integrate **Google OR-Tools** to model real travel time matrices, road network distances, customer delivery time windows (e.g., 9:00 AM – 11:00 AM), and vehicle recharge/refuel stops.
 2. **Inter-Area Spatial Proximity Matrix**:
    - Rather than binary matching on `area == area`, incorporate geographic coordinates (latitude/longitude) or a distance matrix between zones. This allows smart consolidation of small packages from adjacent neighborhoods (e.g., Dokki and Mohandessin) when vehicle capacity allows.
-3. **Exact Dynamic Programming / 0-1 Knapsack Solver for Trips**:
-   - Replace greedy same-area packing with a subset-sum / knapsack solver to guarantee 100% optimal vehicle capacity fill rate when multiple package combinations exist.
+3. **Exact Dynamic Programming / 0-1 Knapsack Solver for Trips (Optimal Bin Packing)**:
+   - **Problem Addressed**: Directly solves the bin-packing fragmentation documented in [Scenario A (Question 3)](#scenario-a-suboptimal-bin-packing-within-an-area-fragmentation). While greedy heuristics pack items sequentially, combinatorial DP explores the entire feasible subset space to minimize total vehicle trips dispatched.
+   - **Algorithmic Formulation**:
+     - Formulate trip filling as a **Bounded 0/1 Knapsack DP** over candidate packages in the seeded area.
+     - **Capacity Discretization**: Scale package weights by a fixed factor (e.g., $\times 100$) to convert floating-point weights into integer capacities with 0.01 kg resolution.
+     - **Urgency-Dominant Objective Function**: Assign package values using a tiered priority weight:
+       $$V(d) = (100 - \min(\text{priority}, 99)) \times 10^5 + w_{\text{int}}$$
+       This guarantees SLA urgency is strictly preserved while maximizing remaining capacity utilization.
+     - **Stop Budget Constraint**: Expand state space to 2D DP $DP[w][k]$ where $k \le \text{max\_stops}$ when route stop limits are enforced.
+   - **Complexity & Scaling Trade-Off**:
+     - Running exact DP per trip exhibits pseudo-polynomial time complexity: $O(M \cdot W)$ per trip, or $O(N^2 \cdot W)$ in the worst-case across all dispatches (where $W$ is the scaled capacity, e.g. 1,000 for 10.0 kg).
+     - Because this introduces computational and memory overhead relative to the $O(N \log N)$ min-heap streaming approach on massive datasets ($N \ge 100,000$), it was decoupled from the primary CLI.
+   - **Production Hybrid Architecture**:
+     - Implement an adaptive dispatcher: small delivery batches per zone ($M_i \le 50$) route through the exact 0/1 Knapsack solver for 100% capacity fill rate, while large streaming zones automatically fall back to the $O(\log M)$ Min-Heap planner (`v3_minheap`).
 4. **Dynamic Real-Time Re-Dispatching**:
    - Provide an event-driven API (FastAPI / Webhooks) that allows incoming rush orders to dynamically update driver manifests before departure.
 5. **Interactive Dispatcher Map Visualizer**:
