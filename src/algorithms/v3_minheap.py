@@ -41,6 +41,20 @@ class MinHeapPlannerV3(BasePlannerStrategy):
     def algorithm_name(self) -> str:
         return "v3_minheap"
 
+    @staticmethod
+    def _build_scheduler(
+        area_heaps: Dict[str, List[Tuple[int, float, str, Delivery]]],
+        exclude_area: Optional[str] = None,
+    ) -> List[Tuple[int, float, str, str]]:
+        """Build or re-synchronize the area urgency scheduler min-heap."""
+        scheduler: List[Tuple[int, float, str, str]] = [
+            (heap[0][0], heap[0][1], heap[0][2], area)
+            for area, heap in area_heaps.items()
+            if heap and (exclude_area is None or area != exclude_area)
+        ]
+        heapq.heapify(scheduler)
+        return scheduler
+
     def plan_trips(
         self,
         deliveries: List[Delivery],
@@ -59,11 +73,7 @@ class MinHeapPlannerV3(BasePlannerStrategy):
 
         # 2. Build area scheduler min-heap
         # Scheduler item: (top_priority, top_weight, top_id_str, area_name)
-        area_scheduler: List[Tuple[int, float, str, str]] = []
-        for area, heap in area_heaps.items():
-            if heap:
-                top_p, top_w, top_id, _ = heap[0]
-                heapq.heappush(area_scheduler, (top_p, top_w, top_id, area))
+        area_scheduler = self._build_scheduler(area_heaps)
 
         trips: List[Trip] = []
         trip_counter = 1
@@ -141,11 +151,7 @@ class MinHeapPlannerV3(BasePlannerStrategy):
 
                     # Re-sync the scheduler heap if items were removed from other areas
                     if rebuild_scheduler:
-                        area_scheduler = []
-                        for a, h in area_heaps.items():
-                            if a != primary_area and h:
-                                top_p, top_w, top_id, _ = h[0]
-                                heapq.heappush(area_scheduler, (top_p, top_w, top_id, a))
+                        area_scheduler = self._build_scheduler(area_heaps, exclude_area=primary_area)
 
             # If primary area still has packages, push back into scheduler heap
             if primary_heap:
