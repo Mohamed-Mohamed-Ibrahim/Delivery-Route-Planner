@@ -106,6 +106,8 @@ class MinHeapPlannerV3(BasePlannerStrategy):
             if allow_multi_area and current_trip.remaining_capacity > 0:
                 if max_stops is None or current_trip.stops_count < max_stops:
                     # Collect other areas currently in the scheduler
+                    # Optimization in next version to choose the nearest area based on gps or location
+                        # use a heap based on distance and road cost instead of normal array 
                     active_scheduler_areas = [entry[3] for entry in area_scheduler]
                     rebuild_scheduler = False
 
