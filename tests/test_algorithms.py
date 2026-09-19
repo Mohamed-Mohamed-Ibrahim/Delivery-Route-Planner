@@ -231,4 +231,36 @@ def test_minheap_large_dataset_scaling() -> None:
     # Invariant checks are executed inside planner.plan() automatically
 
 
+def test_minheap_multi_area_non_fitting_area_not_dropped() -> None:
+    """Regression: area popped for multi-area probing must be re-scheduled even if no packages fit.
 
+    Root Cause A of the scheduler data-loss bug: when all packages from a candidate area
+    exceed the remaining trip capacity, packed_from_other stayed False and the area was
+    never pushed back into the scheduler — permanently losing its deliveries.
+    """
+    deliveries = [
+        Delivery(id=1, area="A", priority=1, weight=6.0),
+        Delivery(id=2, area="B", priority=2, weight=9.0),  # 9kg won't fit 4kg remainder
+    ]
+    planner = RoutePlanner(max_capacity=10.0, allow_multi_area=1, algorithm_version="v3_minheap")
+    plan = planner.plan(deliveries)
+    assert plan.metrics.delivered_count == 2, "Package from non-fitting area B must not be lost"
+    assert plan.metrics.total_trips == 2
+
+
+def test_minheap_multi_area_early_break_area_not_dropped() -> None:
+    """Regression: areas popped but not yet iterated when loop breaks early must be re-scheduled.
+
+    Root Cause B of the scheduler data-loss bug: when the packing loop broke early (trip
+    full), remaining entries in candidate_areas were never iterated or pushed back —
+    permanently losing those areas and their deliveries.
+    """
+    deliveries = [
+        Delivery(id=1, area="A", priority=1, weight=5.0),
+        Delivery(id=2, area="B", priority=2, weight=5.0),  # fills trip completely
+        Delivery(id=3, area="C", priority=3, weight=3.0),  # popped but loop breaks before C
+    ]
+    planner = RoutePlanner(max_capacity=10.0, allow_multi_area=2, algorithm_version="v3_minheap")
+    plan = planner.plan(deliveries)
+    assert plan.metrics.delivered_count == 3, "Area C must not be lost due to early loop break"
+    assert plan.metrics.total_trips == 2
