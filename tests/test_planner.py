@@ -72,12 +72,12 @@ def test_planner_allow_multi_area() -> None:
         Delivery(id=3, area="Zamalek", priority=3, weight=2.0),
     ]
     # By default, single area grouping creates 3 trips
-    planner_single = RoutePlanner(max_capacity=10.0, allow_multi_area=False)
+    planner_single = RoutePlanner(max_capacity=10.0, allow_multi_area=0)
     plan_single = planner_single.plan(deliveries)
     assert len(plan_single.trips) == 3
 
     # With allow_multi_area=True, they consolidate into 1 trip of 6.0 kg
-    planner_multi = RoutePlanner(max_capacity=10.0, allow_multi_area=True)
+    planner_multi = RoutePlanner(max_capacity=10.0, allow_multi_area=3)
     plan_multi = planner_multi.plan(deliveries)
     assert len(plan_multi.trips) == 1
     assert plan_multi.trips[0].total_weight == 6.0
