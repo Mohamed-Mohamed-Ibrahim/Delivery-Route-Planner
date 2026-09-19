@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import heapq
-from collections import defaultdict
+from collections import defaultdict, Counter
 from typing import Dict, List, Optional, Tuple
 
 from src.algorithms.base import BasePlannerStrategy
@@ -41,19 +41,19 @@ class MinHeapPlannerV3(BasePlannerStrategy):
     def algorithm_name(self) -> str:
         return "v3_minheap"
 
-    @staticmethod
-    def _build_scheduler(
-        area_heaps: Dict[str, List[Tuple[int, float, str, Delivery]]],
-        exclude_area: Optional[str] = None,
-    ) -> List[Tuple[int, float, str, str]]:
-        """Build or re-synchronize the area urgency scheduler min-heap."""
-        scheduler: List[Tuple[int, float, str, str]] = [
-            (heap[0][0], heap[0][1], heap[0][2], area)
-            for area, heap in area_heaps.items()
-            if heap and (exclude_area is None or area != exclude_area)
-        ]
-        heapq.heapify(scheduler)
-        return scheduler
+    # @staticmethod
+    # def _build_scheduler(
+    #     area_heaps: Dict[str, List[Tuple[int, float, str, Delivery]]],
+    #     exclude_area: Optional[str] = None,
+    # ) -> List[Tuple[int, float, str, str]]:
+    #     """Build or re-synchronize the area urgency scheduler min-heap."""
+    #     scheduler: List[Tuple[int, float, str, str]] = [
+    #         (heap[0][0], heap[0][1], heap[0][2], area)
+    #         for area, heap in area_heaps.items()
+    #         if heap and (exclude_area is None or area != exclude_area)
+    #     ]
+    #     heapq.heapify(scheduler)
+    #     return scheduler
 
     def plan_trips(
         self,
@@ -69,20 +69,34 @@ class MinHeapPlannerV3(BasePlannerStrategy):
 
         # 1. Bucket deliveries by area into priority min-heaps
         # Heap item: (priority, weight, id_str, delivery)
-        area_heaps: Dict[str, List[Tuple[int, float, str, Delivery]]] = defaultdict(list)
+        area_heaps: Dict[str, List[Tuple[int, float, str, Delivery]]] = defaultdict(
+            list
+        )
+        min_priority = 0
         for d in deliveries:
             heapq.heappush(area_heaps[d.area], (d.priority, d.weight, str(d.id), d))
+            min_priority = max(min_priority, d.priority)
 
         # 2. Build area scheduler min-heap
         # Scheduler item: (top_priority, top_weight, top_id_str, area_name)
-        area_scheduler = self._build_scheduler(area_heaps)
+        # area_scheduler = self._build_scheduler(area_heaps)
+        area_scheduler = []
+        cnt = Counter()
+        for area in area_heaps.keys():
+            cnt = Counter([d.priority for _, _, _, d in area_heaps[area]])
+            tasks = [0 for _ in range(min_priority + 1)]
+            for k, v in cnt.items():
+                tasks[k] = -v
+            tasks.append(area)
+            heapq.heappush(area_scheduler, tasks)
 
         trips: List[Trip] = []
         trip_counter = 1
 
         # 3. Process trips until all area heaps are empty
         while area_scheduler:
-            _, _, _, primary_area = heapq.heappop(area_scheduler)
+            tasks = heapq.heappop(area_scheduler)
+            primary_area = tasks[-1]
             primary_heap = area_heaps[primary_area]
 
             if not primary_heap:
@@ -107,6 +121,7 @@ class MinHeapPlannerV3(BasePlannerStrategy):
                 candidate = entry[3]
                 if current_trip.can_fit(candidate):
                     current_trip.add_delivery(candidate)
+                    tasks[candidate.priority] += 1
                 else:
                     temp_buffer.append(entry)
 
@@ -119,14 +134,19 @@ class MinHeapPlannerV3(BasePlannerStrategy):
                     # Probe only the top K most urgent candidate areas from the scheduler heap
                     # Optimization in next version to choose the nearest area based on gps or location
                     candidate_areas = [
-                        entry[3] for entry in heapq.nsmallest(allow_multi_area, area_scheduler)
+                        entry
+                        for entry in heapq.nsmallest(allow_multi_area, area_scheduler)
                     ]
                     rebuild_scheduler = False
 
-                    for other_area in candidate_areas:
+                    for other_tasks in candidate_areas:
+                        other_area = other_tasks[-1]
                         if current_trip.remaining_capacity <= 0:
                             break
-                        if max_stops is not None and current_trip.stops_count >= max_stops:
+                        if (
+                            max_stops is not None
+                            and current_trip.stops_count >= max_stops
+                        ):
                             break
 
                         other_heap = area_heaps[other_area]
@@ -134,13 +154,17 @@ class MinHeapPlannerV3(BasePlannerStrategy):
                         packed_from_other = False
 
                         while other_heap and current_trip.remaining_capacity > 0:
-                            if max_stops is not None and current_trip.stops_count >= max_stops:
+                            if (
+                                max_stops is not None
+                                and current_trip.stops_count >= max_stops
+                            ):
                                 break
 
                             entry = heapq.heappop(other_heap)
                             candidate = entry[3]
                             if current_trip.can_fit(candidate):
                                 current_trip.add_delivery(candidate)
+                                other_tasks[candidate.priority] += 1
                                 packed_from_other = True
                             else:
                                 other_temp.append(entry)
@@ -149,16 +173,17 @@ class MinHeapPlannerV3(BasePlannerStrategy):
                             heapq.heappush(other_heap, item)
 
                         if packed_from_other:
-                            rebuild_scheduler = True
+                            heapq.heappush(area_scheduler, other_tasks)
 
                     # Re-sync the scheduler heap if items were removed from other areas
-                    if rebuild_scheduler:
-                        area_scheduler = self._build_scheduler(area_heaps, exclude_area=primary_area)
+                    # if rebuild_scheduler:
+                    #     area_scheduler = self._build_scheduler(
+                    #         area_heaps, exclude_area=primary_area
+                    #     )
 
             # If primary area still has packages, push back into scheduler heap
             if primary_heap:
-                top_p, top_w, top_id, _ = primary_heap[0]
-                heapq.heappush(area_scheduler, (top_p, top_w, top_id, primary_area))
+                heapq.heappush(area_scheduler, tasks)
 
             # Order drop-offs within the trip by priority (most urgent first)
             current_trip.deliveries.sort(key=lambda d: (d.priority, str(d.id)))
